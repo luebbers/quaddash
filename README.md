@@ -52,7 +52,7 @@ Mit der Option `MuteSw` schaltet ein beliebiger Schalter die Sprachwarnungen stu
 
 - Ist er aktiv, erscheint rechts in der Kopfzeile ein rotes **STUMM**.
 - **Im Flug wirkt der Mute nie:** Armst du, ist die Warnung wieder aktiv, und die Kopfzeile zeigt orange **LAUT**.
-- Hängt der FC nur am USB (unter 2,5 V), erkennt das Widget „kein Akku“, zeigt **USB** an und warnt ohnehin nicht.
+- Hängt der FC nur am USB (unter 2 V, nur disarmed), erkennt das Widget „kein Akku“, zeigt **USB** an und warnt ohnehin nicht.
 
 Auf der TX15 passt dafür eine der sechs Tasten mit RGB-LED:
 1. *MDL → Setup → Customizable Switches*, dort SW6 einstellen.

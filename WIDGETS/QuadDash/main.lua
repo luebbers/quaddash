@@ -20,7 +20,7 @@ local HIST_N = 120          -- Verlauf: 120 Samples ...
 local HIST_DT = 50          -- ... alle 0,5 s = 60 s
 local NEW_BATT_GAP = 1000   -- 10 s ohne Link -> beim Wiederverbinden auf neuen Akku pruefen
 local HEADER_H = 30
-local MIN_BATT_V = 2.5      -- darunter steckt kein Akku (FC nur per USB versorgt)
+local MIN_BATT_V = 2.0      -- darunter steckt kein Akku (FC nur per USB versorgt)
 local C
 
 local function initColors()
@@ -176,9 +176,10 @@ local function tick(wgt)
     s.checkBatt = false
   end
 
-  d.usb = up and d.v ~= nil and d.v < MIN_BATT_V
+  -- armed gibt es kein USB: ein Akku, der unter Last einbricht, muss weiter warnen
+  d.usb = up and not s.armed and d.v ~= nil and d.v < MIN_BATT_V
   if d.usb then s.checkBatt = true end                    -- Akku kommt evtl. bei stehendem Link dazu
-  d.cell = (d.v and d.v >= MIN_BATT_V) and d.v / cellsOf(wgt) or nil
+  d.cell = (d.v and d.v > 0 and not d.usb) and d.v / cellsOf(wgt) or nil
   local muteSrc = wgt.options.MuteSw
   s.muted = muteSrc ~= nil and muteSrc ~= 0 and (getValue(muteSrc) or 0) > 0
 

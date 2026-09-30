@@ -86,3 +86,6 @@ scenario("USB-Versorgung 0.7V", function() S.link = true; S.RxBt = 0.7; S.ch5 = 
 scenario("Akku leer, disarmed, laut", function() S.RxBt = 3.2 end)
 scenario("Akku leer, disarmed, STUMM", function() S.mute = true end)
 scenario("Akku leer, ARMED, Mute an", function() S.ch5 = 1024; S.FM = "AIR" end)
+scenario("Einbruch 1.9V, ARMED, laut", function() S.mute = false; S.ch5 = 1024; S.FM = "AIR"; S.RxBt = 1.9 end)
+scenario("1.9V disarmed = USB", function() S.ch5 = -1024; S.FM = "ACRO*" end)
+scenario("2.2V disarmed = Akku", function() S.RxBt = 2.2 end)
