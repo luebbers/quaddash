@@ -12,6 +12,7 @@ local options = {
   { "LowCell",  VALUE, 350, 300, 420 },   -- Warnschwelle in 1/100 V pro Zelle
   { "CritCell", VALUE, 330, 280, 400 },   -- kritische Schwelle in 1/100 V pro Zelle
   { "Voice",    BOOL,  1 },
+  { "MuteSw",   SOURCE, 0 },  -- Schalter zum Stummschalten (wirkt nur disarmed)
 }
 
 local PAGES = { "Preflight", "Link", "Session" }
@@ -19,6 +20,7 @@ local HIST_N = 120          -- Verlauf: 120 Samples ...
 local HIST_DT = 50          -- ... alle 0,5 s = 60 s
 local NEW_BATT_GAP = 1000   -- 10 s ohne Link -> beim Wiederverbinden auf neuen Akku pruefen
 local HEADER_H = 30
+local MIN_BATT_V = 2.5      -- darunter steckt kein Akku (FC nur per USB versorgt)
 local C
 
 local function initColors()
@@ -106,6 +108,7 @@ end
 local function voice(wgt, now)
   local s, d, o = wgt.s, wgt.s.d, wgt.options
   if o.Voice ~= 1 or not s.up or not d.cell then return end
+  if s.muted and not s.armed then return end            -- Mute gilt nie im Flug
   local low, crit = o.LowCell / 100, o.CritCell / 100
   local level = 0
   if d.cell < crit then level = 2 elseif d.cell < low then level = 1 end
@@ -157,7 +160,7 @@ local function tick(wgt)
   s.up = up
 
   -- Zellen erkennen / neuer Akku
-  if up and s.checkBatt and d.v and d.v > 0.5 then
+  if up and s.checkBatt and d.v and d.v >= MIN_BATT_V then
     local guess = math.max(1, math.ceil(d.v / 4.35))
     local cellNow = d.v / guess
     local st = s.stats
@@ -173,7 +176,11 @@ local function tick(wgt)
     s.checkBatt = false
   end
 
-  d.cell = (d.v and d.v > 0.5) and d.v / cellsOf(wgt) or nil
+  d.usb = up and d.v ~= nil and d.v < MIN_BATT_V
+  if d.usb then s.checkBatt = true end                    -- Akku kommt evtl. bei stehendem Link dazu
+  d.cell = (d.v and d.v >= MIN_BATT_V) and d.v / cellsOf(wgt) or nil
+  local muteSrc = wgt.options.MuteSw
+  s.muted = muteSrc ~= nil and muteSrc ~= 0 and (getValue(muteSrc) or 0) > 0
 
   -- Arm-Status: CH5 (ELRS-Arm-Kanal) und Betaflight-Flugmodus ("*" = disarmed, "!ERR" = gesperrt)
   local armSwitch = getValue("ch5") > 0
@@ -345,6 +352,15 @@ local function header(wgt, x, y, w, full, page)
 
   -- rechts: Senderakku, dann Zellen + Flugzeit
   local rightEnd = txBattery(x + w - 8, cy)
+  if s.muted then
+    -- rot = Warnungen stumm; orange = Schalter an, aber armed -> Warnungen trotzdem aktiv
+    local mt = s.armed and "LAUT" or "STUMM"
+    local mw = lcd.sizeText(mt, 0)
+    rightEnd = rightEnd - 10
+    lcd.drawFilledRectangle(rightEnd - mw - 16, y + 4, mw + 16, HEADER_H - 8, s.armed and C.orange or C.red)
+    lcd.drawText(rightEnd - mw - 8, floor(cy - th / 2), mt, C.text)
+    rightEnd = rightEnd - mw - 16
+  end
   local right = string.format("%dS  %s", cellsOf(wgt), fmtTime(s.stats.flight))
   if rightEnd < x + w - 8 then rightEnd = rightEnd - 12 end
   textR(rightEnd, floor(cy - th / 2), right, 0, s.armed and C.text or C.dim)
@@ -387,7 +403,8 @@ local function pagePreflight(wgt, x, y, w, h)
 
   local cell = d.cell
   gauge(x + w / 6, cy, r, cell and (cell - 3.0) / (4.35 - 3.0), c(cellColor(wgt, cell)),
-    fmt(cell, "%.2fV"), "pro Zelle", d.v and string.format("%.2fV  %dS", d.v, cells))
+    d.usb and "USB" or fmt(cell, "%.2fV"), "pro Zelle",
+    d.v and (d.usb and string.format("%.1fV  kein Akku", d.v) or string.format("%.2fV  %dS", d.v, cells)))
 
   gauge(x + w / 2, cy, r, d.rq and d.rq / 100, c(lqColor(d.rq)),
     fmt(d.rq, "%d%%"), "LQ", "RSSI " .. fmt(bestRssi(d), "%ddBm"))
@@ -423,7 +440,8 @@ local function pagePreflight(wgt, x, y, w, h)
   if up and d.fm then fmCol = string.find(d.fm, "!ERR", 1, true) and C.red or C.green end
   local lx = x + 8
   dot(lx, ly, linkCol, "Link")
-  dot(lx + colW, ly, battCol, "Akku voll")
+  if d.usb then battCol = C.blue end
+  dot(lx + colW, ly, battCol, d.usb and "USB-Strom" or "Akku voll")
   dot(lx + colW * 2, ly, armCol, armLbl)
   dot(lx + colW * 3, ly, fmCol, "Arming frei")
 

@@ -28,6 +28,7 @@ local names = {"RxBt","Curr","Capa","Bat%","RQly","1RSS","2RSS","RSNR","ANT","TQ
 function getFieldInfo(n) for i,v in ipairs(names) do if v==n then return {id=i, name=n} end end return nil end
 function getGeneralSettings() return { battMin = 6.0, battMax = 8.4, battWarn = 6.6 } end
 function getValue(id) if id == "ch5" then return S.ch5 or -1024 end
+  if id == 999 then return S.mute and 1024 or -1024 end
   if id == "tx-voltage" then return S.txv or 7.9 end return S[names[id]] or 0 end
 function getRSSI() return S.link and (S.RQly or 0) or 0 end
 function getTime() return T end
@@ -70,3 +71,18 @@ frame(1, EVT_VIRTUAL_NEXT, nil, true); frame(1, EVT_TOUCH_SLIDE, {swipeLeft=true
 frame(1, EVT_TOUCH_TAP, {x=400, y=300}, true); frame(1, EVT_VIRTUAL_ENTER_LONG, nil, true)
 print("page after events:", wgt.page, "played:", string.sub(table.concat(played, ", "), 1, 300))
 print("draw calls:", calls)
+
+-- Mute-Schalter & USB-Versorgung
+local function voiceCount() local n = 0 for _, f in ipairs(played) do if f == "SYSTEM/lowbatt.wav" then n = n + 1 end end return n end
+local function scenario(tag, setup, frames)
+  local before = voiceCount()
+  setup(); frame(frames or 800)
+  print(string.format("%-28s usb=%s muted=%s armed=%s cell=%s ansagen=%d", tag, tostring(wgt.s.d.usb),
+    tostring(wgt.s.muted), tostring(wgt.s.armed), tostring(wgt.s.d.cell), voiceCount() - before))
+  allPages(tag)
+end
+opts.MuteSw = 999; W.update(wgt, opts)
+scenario("USB-Versorgung 0.7V", function() S.link = true; S.RxBt = 0.7; S.ch5 = -1024; S.FM = "ACRO*"; S.mute = false end)
+scenario("Akku leer, disarmed, laut", function() S.RxBt = 3.2 end)
+scenario("Akku leer, disarmed, STUMM", function() S.mute = true end)
+scenario("Akku leer, ARMED, Mute an", function() S.ch5 = 1024; S.FM = "AIR" end)

@@ -37,6 +37,7 @@ Bei Telemetrie-Verlust erscheint ein Banner mit den letzten bekannten Werten:
 | `LowCell` | 350 | Warnschwelle in 1/100 V pro Zelle |
 | `CritCell` | 330 | kritische Schwelle in 1/100 V pro Zelle |
 | `Voice` | an | Sprachwarnung bei niedriger Zellenspannung |
+| `MuteSw` | – | Schalter zum Stummschalten der Warnungen (z. B. Taste SW6), siehe unten |
 
 ## Bedienung (Vollbild)
 
@@ -44,6 +45,20 @@ Bei Telemetrie-Verlust erscheint ein Banner mit den letzten bekannten Werten:
 - Statistik zurücksetzen: ENTER lang oder „Reset“ auf Seite 3
 
 Tasten- und Touch-Events bekommt ein EdgeTX-Widget nur im Vollbild. In der normalen Ansicht legt deshalb die Option `Page` die Seite fest.
+
+## Warnungen stummschalten
+
+Mit der Option `MuteSw` schaltet ein beliebiger Schalter die Sprachwarnungen stumm, zum Beispiel beim Einstellen in Betaflight.
+
+- Ist er aktiv, erscheint rechts in der Kopfzeile ein rotes **STUMM**.
+- **Im Flug wirkt der Mute nie:** Armst du, ist die Warnung wieder aktiv, und die Kopfzeile zeigt orange **LAUT**.
+- Hängt der FC nur am USB (unter 2,5 V), erkennt das Widget „kein Akku“, zeigt **USB** an und warnt ohnehin nicht.
+
+Auf der TX15 passt dafür eine der sechs Tasten mit RGB-LED:
+1. *MDL → Setup → Customizable Switches*, dort SW6 einstellen.
+2. Typ **2POS** (einrasten), Startzustand **Off**, damit nach dem Einschalten nicht stumm ist.
+3. Farbe **An = Rot**, Aus = dunkel.
+4. In den QuadDash-Optionen `MuteSw` = SW6 wählen.
 
 ## Voraussetzungen und Logik
 
