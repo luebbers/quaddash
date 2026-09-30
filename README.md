@@ -1,90 +1,124 @@
 # QuadDash
 
-EdgeTX-Lua-Widget für ELRS- und Betaflight-Quads: ein **Preflight- und Debug-Dashboard** für den Sender. Es soll nicht während des Flugs abgelesen werden (dann ist die Brille auf), sondern vor dem Start und bei der Fehlersuche helfen.
+*English | [Deutsch](README.de.md)*
 
-Entwickelt für die RadioMaster TX15 (EdgeTX 3.0, 480×320 Farbdisplay, ELRS 4.x). Es sollte auf jedem EdgeTX-Farbdisplay laufen.
+An EdgeTX Lua widget for ELRS + Betaflight quads: a **preflight and debug dashboard** on your radio. It is not meant to be read during flight (your goggles are on then). It helps before takeoff and when troubleshooting: Is the link good? Is the battery full? Why won't it arm? How low did the voltage go?
+
+Developed on a RadioMaster TX15 (EdgeTX 3.0, 480×320 color screen, ELRS 4.x). It should run on any EdgeTX radio with a color screen.
 
 | Preflight | Link | Session |
 |---|---|---|
 | ![Preflight](docs/page1.png) | ![Link](docs/page2.png) | ![Session](docs/page3.png) |
 
-*Die Bilder stammen aus der Vorschau-Simulation (`tools/render.lua`). Die Schriften auf dem Sender sehen etwas anders aus.*
+*Screenshots come from the preview simulation (`tools/render.lua`). Fonts on the radio look slightly different.*
 
-## Seiten
+## What you need
 
-Die **Kopfzeile** auf allen Seiten zeigt den Arm-Status (DISARMED/ARMED/ARM GESPERRT/FAILSAFE/KEIN LINK), den Betaflight-Flugmodus, den Seitentitel, Zellenzahl und Flugzeit sowie den **Akku des Senders** (Symbol + Spannung). Die Prozentanzeige richtet sich nach den Akku-Schwellen in den Radio-Einstellungen (Min/Max/Warnung), rot ab der Warnschwelle.
-
-1. **Preflight**: Rundinstrumente für Spannung pro Zelle, LQ und Strom. Balken für RSSI und Akku-%. Ampel-Checkliste: Link, Akku voll, Arm-Schalter aus, Arming frei (Betaflight `!ERR`)
-2. **Link**: Uplink/Downlink LQ, RSSI beider Antennen (die aktive ist markiert), SNR, TX Power, RF-Mode. Verlaufsgraph der letzten 60 s, Link-Verluste in Rot
-3. **Session**: Flugzeit (zählt nur armed), Zellenspannung Start/Minimum, verbrauchte mAh, maximaler Strom, minimale LQ/RSSI, Link-Verluste und längster Ausfall. Künstlicher Horizont zum Prüfen der FC-Ausrichtung
-
-Bei Telemetrie-Verlust erscheint ein Banner mit den letzten bekannten Werten:
-
-![Kein Link](docs/page1_nolink.png)
+- A radio with a **color screen** running **EdgeTX** (tested with 3.0). You can see your version under *SYS → Version*. Black-and-white radios are not supported.
+- An **ExpressLRS** receiver on the quad with telemetry working (the default for ELRS).
+- **Betaflight** on the flight controller. Betaflight sends battery voltage, current, flight mode and attitude over the ELRS link automatically, no extra setup needed. Current and mAh only show up if your FC or ESC has a current sensor.
+- **Arm switch on channel 5** (AUX1). This is the ELRS standard, so if you followed a normal ELRS setup, you already have it.
 
 ## Installation
 
-1. `WIDGETS/QuadDash/` auf die SD-Karte des Senders nach `/WIDGETS/` kopieren. Den Sender dazu per USB verbinden und „USB Storage“ wählen.
-2. Im Modell einen Bildschirm mit Vollbild-Layout (1 Zone) anlegen und das Widget **QuadDash** auswählen.
-3. Die Telemetrie-Sensoren müssen erkannt sein (*MDL → Telemetry → Discover new sensors*).
+1. **Download** this repository: click the green **Code** button at the top of this page, then **Download ZIP**, and unzip it.
+2. **Connect the radio** to your computer with a USB cable. When the radio asks, choose **USB Storage (SD)**. The SD card appears as a drive on your computer.
+3. **Copy the widget:** copy the folder `WIDGETS/QuadDash` from the ZIP into the `WIDGETS` folder on the SD card. Afterwards this file must exist: `/WIDGETS/QuadDash/main.lua`. Eject the drive and unplug the cable.
+4. **Discover telemetry sensors:** power up the quad (with a battery, so the link is up), then on the radio go to *MDL → Telemetry → Discover new sensors*. Wait until sensors like `RxBt`, `RQly` and `1RSS` appear, then stop discovery. This is needed once per model.
+5. **Add the widget to a screen:** open the screen setup for your model (*Screens* / *User interface* in the model or quick menu, depending on your EdgeTX version), add a new screen, choose the **full-screen layout with one zone**, tap the zone and select **QuadDash**. Turning off the top bar and sliders in the layout settings gives the widget more room.
+6. Back on the main view, swipe or page to the new screen. Done.
 
-## Optionen
+If the zone is too small (under 300×170 pixels), the widget only shows a compact status line with cell voltage and LQ.
 
-| Option | Standard | Bedeutung |
+## Pages
+
+The **header** on every page shows the arm status (DISARMED / ARMED / ARM BLOCKED / FAILSAFE / NO LINK / WAITING FOR QUAD), the Betaflight flight mode, the page title, cell count, flight time and the **radio battery** (icon + voltage). The radio battery gauge uses the battery range from your radio settings and turns red at the warning threshold.
+
+1. **Preflight:** round gauges for voltage per cell, link quality (LQ) and current. Bars for RSSI and battery %. A traffic-light checklist: link good, battery full, arm switch off, arming allowed (no Betaflight arming error)
+2. **Link:** uplink/downlink LQ, RSSI of both receiver antennas (the active one is highlighted), SNR, TX power and RF mode. A graph of the last 60 seconds, link losses shown in red
+3. **Session:** flight time (counts only while armed), cell voltage at start and minimum, mAh used, maximum current, minimum LQ/RSSI, number of link losses and the longest outage. An artificial horizon to check that the flight controller orientation is set up correctly
+
+When telemetry is lost, a banner shows the last known values:
+
+![No link](docs/page1_nolink.png)
+
+## Using the widget
+
+**Full screen:** an EdgeTX widget only receives buttons and touch input in full-screen mode. Select the widget (tap it or long-press) and choose *Full screen*. Long-press RTN/EXIT to leave full screen.
+
+- Change page: swipe, scroll wheel, PAGE key, or tap the header
+- Reset statistics: long-press ENTER, or the *Reset* button on page 3
+
+In the normal (non-full-screen) view, the option `Page` decides which page is shown.
+
+Statistics also reset automatically when you plug in a new battery (see *How it works* below), so normally you never need to reset by hand.
+
+## Options
+
+Open them via the widget settings (select the widget, then *Widget settings*).
+
+| Option | Default | Meaning |
 |---|---|---|
-| `Page` | 1 | Seite in der normalen Ansicht (1–3) |
-| `Cells` | 0 | Zellenzahl, 0 = automatisch (`ceil(V / 4,35)`) |
-| `LowCell` | 350 | Warnschwelle in 1/100 V pro Zelle |
-| `CritCell` | 330 | kritische Schwelle in 1/100 V pro Zelle |
-| `Voice` | an | Sprachwarnung bei niedriger Zellenspannung |
-| `MuteSw` | – | Schalter zum Stummschalten der Warnungen (z. B. Taste SW6), siehe unten |
+| `Page` | 1 | Page shown in the normal view (1–3) |
+| `Cells` | 0 | Cell count, 0 = detect automatically (`ceil(V / 4.35)`) |
+| `LowCell` | 350 | Warning threshold in 1/100 V per cell (350 = 3.50 V) |
+| `CritCell` | 330 | Critical threshold in 1/100 V per cell (330 = 3.30 V) |
+| `Voice` | on | Spoken warning when the cell voltage is low |
+| `MuteSw` | – | Switch that mutes the warnings, e.g. a button (see below) |
+| `Language` | English | Language of the widget (English or Deutsch) |
 
-## Bedienung (Vollbild)
+The `Language` option only changes the text on screen. Spoken warnings use the voice pack installed on your radio.
 
-- Seite wechseln: wischen, Drehrad, PAGE-Taste oder Kopfzeile antippen
-- Statistik zurücksetzen: ENTER lang oder „Reset“ auf Seite 3
+Automatic cell detection works for LiPo and LiHV packs from full down to storage voltage. A nearly empty pack (below about 3.3 V per cell) may be detected with one cell too few. If you often plug in empty packs, set `Cells` to your fixed cell count.
 
-Tasten- und Touch-Events bekommt ein EdgeTX-Widget nur im Vollbild. In der normalen Ansicht legt deshalb die Option `Page` die Seite fest.
+## Muting the warnings
 
-## Warnungen stummschalten
+With the option `MuteSw`, any switch can mute the voice warnings, for example while you tune the quad in Betaflight on the bench.
 
-Mit der Option `MuteSw` schaltet ein beliebiger Schalter die Sprachwarnungen stumm, zum Beispiel beim Einstellen in Betaflight.
+- While muted, a red **MUTED** appears on the right side of the header.
+- **Muting never applies in flight:** once you arm, warnings are active again and the header shows an orange **ACTIVE**.
+- If the flight controller is only powered over USB (under 2 V, only while disarmed), the widget recognizes "no battery", shows **USB** and does not warn anyway.
 
-- Ist er aktiv, erscheint rechts in der Kopfzeile ein rotes **STUMM**.
-- **Im Flug wirkt der Mute nie:** Armst du, ist die Warnung wieder aktiv, und die Kopfzeile zeigt orange **LAUT**.
-- Hängt der FC nur am USB (unter 2 V, nur disarmed), erkennt das Widget „kein Akku“, zeigt **USB** an und warnt ohnehin nicht.
+On the TX15, one of the six buttons with RGB LEDs works well for this:
+1. *MDL → Setup → Customizable Switches*, select SW6.
+2. Type **2POS** (latching), start state **Off**, so the radio is never muted after power-on.
+3. Color **On = red**, Off = dark.
+4. In the QuadDash options, set `MuteSw` = SW6.
 
-Auf der TX15 passt dafür eine der sechs Tasten mit RGB-LED:
-1. *MDL → Setup → Customizable Switches*, dort SW6 einstellen.
-2. Typ **2POS** (einrasten), Startzustand **Off**, damit nach dem Einschalten nicht stumm ist.
-3. Farbe **An = Rot**, Aus = dunkel.
-4. In den QuadDash-Optionen `MuteSw` = SW6 wählen.
+## Troubleshooting
 
-## Voraussetzungen und Logik
+- **Values show `--`:** the sensor is missing. Run *Discover new sensors* again with the quad powered (installation step 4). Current and mAh stay empty without a current sensor on the quad.
+- **Header says WAITING FOR QUAD:** the radio has no link to the receiver yet. Check that the quad is powered and bound.
+- **Wrong cell count:** set the option `Cells` to your pack's cell count.
+- **ARM BLOCKED:** Betaflight refuses to arm. Connect the quad to the Betaflight Configurator to see the reason (for example throttle not low, quad not level, or USB connected).
+- **Arm status looks wrong:** the widget expects the arm switch on channel 5 (AUX1).
+- **Widget does not appear in the list:** check the path on the SD card, it must be exactly `/WIDGETS/QuadDash/main.lua`.
 
-- **Sensoren:** ELRS-Link-Sensoren (`1RSS`, `2RSS`, `RQly`, `RSNR`, `ANT`, `RFMD`, `TPWR`, `TRSS`, `TQly`, `TSNR`) und Betaflight-Telemetrie (`RxBt`, `Curr`, `Capa`, `Bat%`, `FM`, `Ptch`, `Roll`, `Yaw`). Fehlende Sensoren zeigt das Widget als `--` an.
-- **Arm-Status:** CH5 (ELRS-Arm-Kanal) ist an **und** der Betaflight-Flugmodus endet nicht auf `*` (disarmed) und enthält kein `!ERR` (Arming gesperrt).
-- **Link-Status:** über `getRSSI() > 0`.
-- **Neue Session** (automatischer Reset): bei anderer Zellenzahl, wenn noch nicht geflogen wurde, oder bei vollem Akku (≥ 4,0 V/Zelle und mehr als 0,4 V über dem bisherigen Minimum). Nach einem Crash erholt sich die Spannung ohne Last, dabei bleiben die Daten erhalten.
-- **Sprachwarnung:** „Battery low“ + Wert, wenn die Zellenspannung 3 s unter der Schwelle bleibt. Wiederholung alle 30 s, kritisch alle 10 s. Link-Warnungen übernimmt EdgeTX selbst.
+## How it works
 
-## Entwicklung
+- **Sensors:** ELRS link sensors (`1RSS`, `2RSS`, `RQly`, `RSNR`, `ANT`, `RFMD`, `TPWR`, `TRSS`, `TQly`, `TSNR`) and Betaflight telemetry (`RxBt`, `Curr`, `Capa`, `Bat%`, `FM`, `Ptch`, `Roll`, `Yaw`). Missing sensors are shown as `--`.
+- **Arm status:** CH5 (ELRS arm channel) is on **and** the Betaflight flight mode does not end with `*` (disarmed) and does not contain `!ERR` (arming blocked).
+- **Link status:** via `getRSSI() > 0`.
+- **New session** (automatic reset): when the cell count changes, when you have not flown yet, or with a full battery (≥ 4.0 V/cell and more than 0.4 V above the previous minimum). After a crash the voltage recovers without load; the data is kept in that case.
+- **Voice warning:** "Battery low" + value when the cell voltage stays below the threshold for 3 s. Repeats every 30 s, every 10 s when critical. EdgeTX itself handles link warnings.
 
-Die Tools brauchen ein lokales Lua (`brew install lua`) und laufen aus dem Repo-Root:
+## Development
+
+The tools need a local Lua (`brew install lua`) and run from the repo root:
 
 ```sh
-lua tools/sim.lua      # Szenarien gegen eine nachgebaute EdgeTX-API
-lua tools/render.lua   # SVG-Vorschau aller Seiten nach preview/
+lua tools/sim.lua      # scenarios against a mocked EdgeTX API
+lua tools/render.lua   # SVG preview of all pages into preview/
 ```
 
-`sim.lua` entfernt die String-Metatable, weil EdgeTX keine String-Methoden kennt. `s:find()` führt dort zu *attempt to index a string value*, deshalb verwendet das Widget immer `string.find(s, …)`.
+`sim.lua` removes the string metatable because EdgeTX has no string methods. `s:find()` fails there with *attempt to index a string value*, so the widget always uses `string.find(s, …)`.
 
-## Geplant
+## Planned
 
-- GPS-Seite (Satelliten, Entfernung/Richtung zum Home-Punkt, Maximalwerte, letzte bekannte Position nach Link-Verlust)
-- GPS-Fix in der Preflight-Checkliste
-- Letzte Position bei Link-Verlust auf die SD-Karte schreiben
+- GPS page (satellites, distance/direction to home, maximum values, last known position after link loss)
+- GPS fix in the preflight checklist
+- Write the last position to the SD card on link loss
 
-## Lizenz
+## License
 
 [MIT](LICENSE)

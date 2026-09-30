@@ -4,7 +4,7 @@
 -- Aufruf aus dem Repo-Root: lua tools/sim.lua
 debug.setmetatable("", nil)
 -- Mock EdgeTX API
-VALUE, BOOL, SOURCE, COLOR = 1, 2, 3, 4
+VALUE, BOOL, SOURCE, COLOR, CHOICE = 1, 2, 3, 4, 5
 SMLSIZE, MIDSIZE, DBLSIZE, XXLSIZE = 0x100, 0x200, 0x300, 0x400
 SOLID, DOTTED = 0, 1
 UNIT_VOLTS, PREC2 = 1, 0x20
@@ -89,3 +89,10 @@ scenario("Akku leer, ARMED, Mute an", function() S.ch5 = 1024; S.FM = "AIR" end)
 scenario("Einbruch 1.9V, ARMED, laut", function() S.mute = false; S.ch5 = 1024; S.FM = "AIR"; S.RxBt = 1.9 end)
 scenario("1.9V disarmed = USB", function() S.ch5 = -1024; S.FM = "ACRO*" end)
 scenario("2.2V disarmed = Akku", function() S.RxBt = 2.2 end)
+
+-- Sprache: alle Seiten auf Deutsch zeichnen
+opts.Language = 2; W.update(wgt, opts)
+assert(wgt.L.noLink == "KEIN LINK")
+S.link = false; frame(200); allPages("Deutsch")
+opts.Language = 1; W.update(wgt, opts)
+assert(wgt.L.noLink == "NO LINK")

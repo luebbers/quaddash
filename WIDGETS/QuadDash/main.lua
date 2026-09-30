@@ -14,6 +14,43 @@ local options = {
   { "Voice",    BOOL,  1 },
   { "MuteSw",   SOURCE, 0 },  -- Schalter zum Stummschalten (wirkt nur disarmed)
 }
+-- Auswahlliste; ohne CHOICE (aeltere Firmware) als Zahl: 1 = English, 2 = Deutsch
+if CHOICE then
+  options[#options + 1] = { "Language", CHOICE, 1, { "English", "Deutsch" } }
+else
+  options[#options + 1] = { "Language", VALUE, 1, 1, 2 }
+end
+
+local STRINGS = {
+  en = {
+    noLink = "NO LINK", waiting = "WAITING FOR QUAD", blocked = "ARM BLOCKED",
+    muted = "MUTED", loud = "ACTIVE",
+    noTelem = "NO TELEMETRY  for %d s", last = "Last: %s/cell   LQ %s   RSSI %s",
+    perCell = "per cell", noBatt = "%.1fV  no battery", current = "Current", batt = "Batt",
+    ckLink = "Link", ckUsb = "USB power", ckFull = "Batt full", ckArmed = "Armed",
+    ckArmOn = "Arm sw ON", ckArmOff = "Arm sw off", ckArming = "Arming OK",
+    graphInfo = "min LQ %s   min RSSI %s   losses %d",
+    flight = "Flight time", battery = "Battery", cellStart = "Cell start", cellMin = "Cell min",
+    used = "Used", currMax = "Max current", lqMin = "Min LQ", rssiMin = "Min RSSI",
+    losses = "Link losses", longest = "Longest loss", reset = "Reset", resetFull = "Reset: fullscreen",
+  },
+  de = {
+    noLink = "KEIN LINK", waiting = "WARTE AUF QUAD", blocked = "ARM GESPERRT",
+    muted = "STUMM", loud = "LAUT",
+    noTelem = "KEINE TELEMETRIE  seit %d s", last = "Zuletzt: %s/Zelle   LQ %s   RSSI %s",
+    perCell = "pro Zelle", noBatt = "%.1fV  kein Akku", current = "Strom", batt = "Akku",
+    ckLink = "Link", ckUsb = "USB-Strom", ckFull = "Akku voll", ckArmed = "Armed",
+    ckArmOn = "Arm-Sw AN", ckArmOff = "Arm-Sw aus", ckArming = "Arming frei",
+    graphInfo = "min LQ %s   min RSSI %s   Verluste %d",
+    flight = "Flugzeit", battery = "Akku", cellStart = "Zelle Start", cellMin = "Zelle min",
+    used = "Verbraucht", currMax = "Strom max", lqMin = "LQ min", rssiMin = "RSSI min",
+    losses = "Link-Verluste", longest = "Max. Ausfall", reset = "Reset", resetFull = "Reset: Vollbild",
+  },
+}
+
+local function stringsFor(opts)
+  return opts.Language == 2 and STRINGS.de or STRINGS.en
+end
 
 local PAGES = { "Preflight", "Link", "Session" }
 local HIST_N = 120          -- Verlauf: 120 Samples ...
@@ -302,15 +339,15 @@ end
 ------------------------------------------------------------------------
 
 local function statusInfo(wgt)
-  local s = wgt.s
+  local s, L = wgt.s, wgt.L
   if not s.up then
-    if s.everUp then return "KEIN LINK", C.red end
-    return "WARTE AUF QUAD", C.track
+    if s.everUp then return L.noLink, C.red end
+    return L.waiting, C.track
   end
   local fm = s.d.fm or ""
   if string.find(fm, "!FS!", 1, true) then return "FAILSAFE", C.red end
   if s.armed then return "ARMED", C.red end
-  if string.find(fm, "!ERR", 1, true) then return "ARM GESPERRT", C.orange end
+  if string.find(fm, "!ERR", 1, true) then return L.blocked, C.orange end
   return "DISARMED", C.green
 end
 
@@ -355,7 +392,7 @@ local function header(wgt, x, y, w, full, page)
   local rightEnd = txBattery(x + w - 8, cy)
   if s.muted then
     -- rot = Warnungen stumm; orange = Schalter an, aber armed -> Warnungen trotzdem aktiv
-    local mt = s.armed and "LAUT" or "STUMM"
+    local mt = s.armed and wgt.L.loud or wgt.L.muted
     local mw = lcd.sizeText(mt, 0)
     rightEnd = rightEnd - 10
     lcd.drawFilledRectangle(rightEnd - mw - 16, y + 4, mw + 16, HEADER_H - 8, s.armed and C.orange or C.red)
@@ -378,13 +415,13 @@ local function header(wgt, x, y, w, full, page)
 end
 
 local function noLinkBanner(wgt, x, y, w)
-  local s, d = wgt.s, wgt.s.d
+  local s, d, L = wgt.s, wgt.s.d, wgt.L
   if s.up or not s.everUp then return end
   local h = 54
   lcd.drawFilledRectangle(x, y, w, h, C.red)
   local secs = floor((getTime() - (s.downSince or getTime())) / 100)
-  textC(x + w / 2, y + 16, string.format("KEINE TELEMETRIE  seit %d s", secs), MIDSIZE, C.text)
-  local last = string.format("Zuletzt: %s/Zelle   LQ %s   RSSI %s",
+  textC(x + w / 2, y + 16, string.format(L.noTelem, secs), MIDSIZE, C.text)
+  local last = string.format(L.last,
     fmt(d.cell, "%.2fV"), fmt(d.rq, "%d%%"), fmt(bestRssi(d), "%ddBm"))
   textC(x + w / 2, y + 40, last, 0, C.text)
 end
@@ -394,7 +431,7 @@ end
 ------------------------------------------------------------------------
 
 local function pagePreflight(wgt, x, y, w, h)
-  local s, d, st = wgt.s, wgt.s.d, wgt.s.stats
+  local s, d, st, L = wgt.s, wgt.s.d, wgt.s.stats, wgt.L
   local up = s.up
   local bottomH = 66
   local r = floor(math.min(w / 6 - 8, (h - bottomH - 24) / 2))
@@ -404,15 +441,15 @@ local function pagePreflight(wgt, x, y, w, h)
 
   local cell = d.cell
   gauge(x + w / 6, cy, r, cell and (cell - 3.0) / (4.35 - 3.0), c(cellColor(wgt, cell)),
-    d.usb and "USB" or fmt(cell, "%.2fV"), "pro Zelle",
-    d.v and (d.usb and string.format("%.1fV  kein Akku", d.v) or string.format("%.2fV  %dS", d.v, cells)))
+    d.usb and "USB" or fmt(cell, "%.2fV"), L.perCell,
+    d.v and (d.usb and string.format(L.noBatt, d.v) or string.format("%.2fV  %dS", d.v, cells)))
 
   gauge(x + w / 2, cy, r, d.rq and d.rq / 100, c(lqColor(d.rq)),
     fmt(d.rq, "%d%%"), "LQ", "RSSI " .. fmt(bestRssi(d), "%ddBm"))
 
   local currMax = (cells <= 1 and 20) or (cells <= 4 and 60) or 100
   gauge(x + w * 5 / 6, cy, r, d.curr and d.curr / currMax, c(C.blue),
-    fmt(d.curr, "%.1fA"), "Strom", "max " .. fmt(st.maxCurr, "%.1fA"))
+    fmt(d.curr, "%.1fA"), L.current, "max " .. fmt(st.maxCurr, "%.1fA"))
 
   -- Balken
   local by = y + h - bottomH
@@ -422,7 +459,7 @@ local function pagePreflight(wgt, x, y, w, h)
   bar(x + 40, by + 3, half - 110, 10, br and (br + 120) / 80, c(rssiColor(br)))
   textR(x + half, by, fmt(br, "%d dBm"), SMLSIZE, C.text)
   local ax = x + half + 12
-  lcd.drawText(ax, by, "Akku", SMLSIZE + C.dim)
+  lcd.drawText(ax, by, L.batt, SMLSIZE + C.dim)
   bar(ax + 40, by + 3, half - 110, 10, d.pct and d.pct / 100, c(cellColor(wgt, cell)))
   textR(x + w, by, fmt(d.capa, "%d mAh"), SMLSIZE, C.text)
 
@@ -436,15 +473,15 @@ local function pagePreflight(wgt, x, y, w, h)
     battCol = (cell >= 4.0 and C.green) or (cell >= wgt.options.LowCell / 100 and C.yellow) or C.red
   end
   local armCol = s.armed and C.orange or (s.armSwitch and C.red or C.green)
-  local armLbl = s.armed and "Armed" or (s.armSwitch and "Arm-Sw AN" or "Arm-Sw aus")
+  local armLbl = s.armed and L.ckArmed or (s.armSwitch and L.ckArmOn or L.ckArmOff)
   local fmCol = C.dim
   if up and d.fm then fmCol = string.find(d.fm, "!ERR", 1, true) and C.red or C.green end
   local lx = x + 8
-  dot(lx, ly, linkCol, "Link")
+  dot(lx, ly, linkCol, L.ckLink)
   if d.usb then battCol = C.blue end
-  dot(lx + colW, ly, battCol, d.usb and "USB-Strom" or "Akku voll")
+  dot(lx + colW, ly, battCol, d.usb and L.ckUsb or L.ckFull)
   dot(lx + colW * 2, ly, armCol, armLbl)
-  dot(lx + colW * 3, ly, fmCol, "Arming frei")
+  dot(lx + colW * 3, ly, fmCol, L.ckArming)
 
   noLinkBanner(wgt, x, cy - 27, w)
 end
@@ -494,7 +531,7 @@ local function graph(wgt, x, y, w, h)
   lcd.drawText(x + 6, y + 3, "LQ", SMLSIZE + C.green)
   lcd.drawText(x + 30, y + 3, "RSSI", SMLSIZE + C.blue)
   lcd.drawText(x + 70, y + 3, "60 s", SMLSIZE + C.dim)
-  local info = string.format("min LQ %s   min RSSI %s   Verluste %d",
+  local info = string.format(wgt.L.graphInfo,
     fmt(st.minLQ, "%d%%"), fmt(st.minRSSI, "%d"), st.losses)
   textR(x + w - 6, y + 3, info, SMLSIZE, st.losses > 0 and C.red or C.dim)
 end
@@ -556,18 +593,18 @@ local function horizon(cx, cy, r, roll, pitch)
 end
 
 local function pageSession(wgt, x, y, w, h, full)
-  local s, d, st, o = wgt.s, wgt.s.d, wgt.s.stats, wgt.options
+  local s, d, st, o, L = wgt.s, wgt.s.d, wgt.s.stats, wgt.options, wgt.L
   local rows = {
-    { "Flugzeit",      fmtTime(st.flight), C.text },
-    { "Akku",          string.format("%dS%s", cellsOf(wgt), o.Cells == 0 and " (auto)" or ""), C.text },
-    { "Zelle Start",   fmt(st.startCell, "%.2f V"), cellColor(wgt, st.startCell) },
-    { "Zelle min",     fmt(st.minCell, "%.2f V"), cellColor(wgt, st.minCell) },
-    { "Verbraucht",    fmt(st.mah, "%d mAh"), C.text },
-    { "Strom max",     fmt(st.maxCurr, "%.1f A"), C.text },
-    { "LQ min",        fmt(st.minLQ, "%d %%"), lqColor(st.minLQ) },
-    { "RSSI min",      fmt(st.minRSSI, "%d dBm"), rssiColor(st.minRSSI) },
-    { "Link-Verluste", tostring(st.losses), st.losses > 0 and C.red or C.green },
-    { "Max. Ausfall",  string.format("%.1f s", st.longestLoss / 100), st.longestLoss > 0 and C.red or C.dim },
+    { L.flight,    fmtTime(st.flight), C.text },
+    { L.battery,   string.format("%dS%s", cellsOf(wgt), o.Cells == 0 and " (auto)" or ""), C.text },
+    { L.cellStart,  fmt(st.startCell, "%.2f V"), cellColor(wgt, st.startCell) },
+    { L.cellMin,    fmt(st.minCell, "%.2f V"), cellColor(wgt, st.minCell) },
+    { L.used,       fmt(st.mah, "%d mAh"), C.text },
+    { L.currMax,    fmt(st.maxCurr, "%.1f A"), C.text },
+    { L.lqMin,      fmt(st.minLQ, "%d %%"), lqColor(st.minLQ) },
+    { L.rssiMin,    fmt(st.minRSSI, "%d dBm"), rssiColor(st.minRSSI) },
+    { L.losses,     tostring(st.losses), st.losses > 0 and C.red or C.green },
+    { L.longest,    string.format("%.1f s", st.longestLoss / 100), st.longestLoss > 0 and C.red or C.dim },
   }
   local lw = floor(w * 0.55)
   local rh = math.min(26, floor(h / #rows))
@@ -596,11 +633,11 @@ local function pageSession(wgt, x, y, w, h, full)
   local by = y + h - btnH
   if full then
     lcd.drawFilledRectangle(rx, by, rw, btnH, C.track)
-    textC(rx + rw / 2, by + btnH / 2, "Reset", 0, C.text)
+    textC(rx + rw / 2, by + btnH / 2, L.reset, 0, C.text)
     wgt.resetBtn = { x = rx, y = by, w = rw, h = btnH }
   else
     wgt.resetBtn = nil
-    textC(rx + rw / 2, by + btnH / 2, "Reset: Vollbild", SMLSIZE, C.dim)
+    textC(rx + rw / 2, by + btnH / 2, L.resetFull, SMLSIZE, C.dim)
   end
 end
 
@@ -648,7 +685,7 @@ end
 local function create(zone, opts)
   initColors()
   return {
-    zone = zone, options = opts, page = opts.Page,
+    zone = zone, options = opts, page = opts.Page, L = stringsFor(opts),
     s = { d = {}, stats = newStats(), hist = {}, up = false, everUp = false, armed = false },
   }
 end
@@ -656,6 +693,7 @@ end
 local function update(wgt, opts)
   wgt.options = opts
   wgt.page = opts.Page
+  wgt.L = stringsFor(opts)
 end
 
 local function background(wgt)
