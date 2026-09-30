@@ -33,7 +33,8 @@ local T = 0
 local S
 local names = {"RxBt","Curr","Capa","Bat%","RQly","1RSS","2RSS","RSNR","ANT","TQly","TRSS","TSNR","TPWR","RFMD","Ptch","Roll","Yaw","FM"}
 function getFieldInfo(n) for i,v in ipairs(names) do if v==n then return {id=i} end end end
-function getValue(id) if id=="ch5" then return S.ch5 end return S[names[id]] or 0 end
+function getGeneralSettings() return { battMin = 6.0, battMax = 8.4, battWarn = 6.6 } end
+function getValue(id) if id=="ch5" then return S.ch5 end if id=="tx-voltage" then return S.txv or 7.6 end return S[names[id]] or 0 end
 function getRSSI() return S.link and S.RQly or 0 end
 function getTime() return T end
 function playFile() end function playNumber() end function playTone() end

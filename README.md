@@ -12,6 +12,8 @@ Entwickelt für die RadioMaster TX15 (EdgeTX 3.0, 480×320 Farbdisplay, ELRS 4.x
 
 ## Seiten
 
+Die **Kopfzeile** auf allen Seiten zeigt den Arm-Status (DISARMED/ARMED/ARM GESPERRT/FAILSAFE/KEIN LINK), den Betaflight-Flugmodus, den Seitentitel, Zellenzahl und Flugzeit sowie den **Akku des Senders** (Symbol + Spannung). Die Prozentanzeige richtet sich nach den Akku-Schwellen in den Radio-Einstellungen (Min/Max/Warnung), rot ab der Warnschwelle.
+
 1. **Preflight**: Rundinstrumente für Spannung pro Zelle, LQ und Strom. Balken für RSSI und Akku-%. Ampel-Checkliste: Link, Akku voll, Arm-Schalter aus, Arming frei (Betaflight `!ERR`)
 2. **Link**: Uplink/Downlink LQ, RSSI beider Antennen (die aktive ist markiert), SNR, TX Power, RF-Mode. Verlaufsgraph der letzten 60 s, Link-Verluste in Rot
 3. **Session**: Flugzeit (zählt nur armed), Zellenspannung Start/Minimum, verbrauchte mAh, maximaler Strom, minimale LQ/RSSI, Link-Verluste und längster Ausfall. Künstlicher Horizont zum Prüfen der FC-Ausrichtung

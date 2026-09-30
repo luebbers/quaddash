@@ -306,22 +306,58 @@ local function statusInfo(wgt)
   return "DISARMED", C.green
 end
 
+-- Senderakku: Symbol + Spannung, rechtsbuendig bis rx. Gibt die linke Kante zurueck.
+local function txBattery(rx, cy)
+  local v = getValue("tx-voltage")
+  if type(v) ~= "number" or v <= 0 then return rx end
+  local gs = getGeneralSettings()
+  local vMin, vMax, vWarn = gs.battMin or 6.0, gs.battMax or 8.4, gs.battWarn or 6.6
+  local frac = math.max(0, math.min(1, (v - vMin) / (vMax - vMin)))
+  local color = C.green
+  if v <= vWarn then color = C.red elseif frac < 0.3 then color = C.yellow end
+
+  local txt = string.format("%.1fV", v)
+  local tw, th = lcd.sizeText(txt, SMLSIZE)
+  lcd.drawText(floor(rx - tw), floor(cy - th / 2), txt, SMLSIZE + color)
+  local bw, bh = 22, 12
+  local bx, by = floor(rx - tw - 6 - bw - 3), floor(cy - bh / 2)
+  lcd.drawRectangle(bx, by, bw, bh, C.dim)
+  lcd.drawFilledRectangle(bx + bw, by + 3, 3, bh - 6, C.dim)
+  if frac > 0 then
+    lcd.drawFilledRectangle(bx + 2, by + 2, math.max(1, floor((bw - 4) * frac)), bh - 4, color)
+  end
+  return bx
+end
+
 local function header(wgt, x, y, w, full, page)
   local s = wgt.s
+  local cy = y + HEADER_H / 2
   lcd.drawFilledRectangle(x, y, w, HEADER_H, C.panel)
   local txt, col = statusInfo(wgt)
   local tw, th = lcd.sizeText(txt, 0)
   lcd.drawFilledRectangle(x + 4, y + 4, tw + 16, HEADER_H - 8, col)
-  lcd.drawText(x + 12, floor(y + (HEADER_H - th) / 2), txt, C.text)
+  lcd.drawText(x + 12, floor(cy - th / 2), txt, C.text)
+  local leftEnd = x + tw + 20
   if s.up and s.d.fm then
-    lcd.drawText(x + tw + 28, floor(y + (HEADER_H - th) / 2), s.d.fm, C.dim)
+    lcd.drawText(x + tw + 28, floor(cy - th / 2), s.d.fm, C.dim)
+    leftEnd = x + tw + 28 + lcd.sizeText(s.d.fm, 0)
   end
 
-  local title = string.format("%d/%d %s", page, #PAGES, PAGES[page])
-  textC(x + w * 0.58, y + HEADER_H / 2, title, 0, full and C.text or C.dim)
-
+  -- rechts: Senderakku, dann Zellen + Flugzeit
+  local rightEnd = txBattery(x + w - 8, cy)
   local right = string.format("%dS  %s", cellsOf(wgt), fmtTime(s.stats.flight))
-  textR(x + w - 8, floor(y + (HEADER_H - th) / 2), right, 0, s.armed and C.text or C.dim)
+  if rightEnd < x + w - 8 then rightEnd = rightEnd - 12 end
+  textR(rightEnd, floor(cy - th / 2), right, 0, s.armed and C.text or C.dim)
+  rightEnd = rightEnd - lcd.sizeText(right, 0)
+
+  -- Mitte: Seitentitel, gekuerzt oder weggelassen, wenn der Platz nicht reicht
+  local room = rightEnd - leftEnd - 16
+  local title = string.format("%d/%d %s", page, #PAGES, PAGES[page])
+  if lcd.sizeText(title, 0) > room then title = PAGES[page] end
+  local titleW = lcd.sizeText(title, 0)
+  if titleW <= room then
+    textC(leftEnd + 8 + room / 2, cy, title, 0, full and C.text or C.dim)
+  end
 end
 
 local function noLinkBanner(wgt, x, y, w)
