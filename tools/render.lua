@@ -1,5 +1,5 @@
--- Vorschau: rendert alle Seiten als SVG nach preview/ (Schriften nur angenaehert).
--- Aufruf aus dem Repo-Root: lua tools/render.lua
+-- Preview: renders all pages as SVG into preview/ (fonts are only approximated).
+-- Run from the repo root: lua tools/render.lua
 os.execute("mkdir -p preview")
 VALUE, BOOL = 1, 2
 SOLID, DOTTED = 0, 1

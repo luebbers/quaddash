@@ -1,20 +1,20 @@
--- QuadDash - Preflight- & Debug-Dashboard fuer ELRS + Betaflight Quads
--- EdgeTX 3.x, Farbdisplay (entwickelt fuer RadioMaster TX15)
+-- QuadDash - preflight & debug dashboard for ELRS + Betaflight quads
+-- EdgeTX 3.x, color screen (developed on a RadioMaster TX15)
 --
--- Seiten: 1 Preflight | 2 Link | 3 Session
--- Normale Ansicht: Seite ueber Widget-Option "Page"
--- Vollbild: Wischen / Drehrad / PAGE = Seite wechseln, Kopfzeile antippen = naechste Seite,
---           ENTER lang oder Reset-Button (Seite 3) = Statistik zuruecksetzen
+-- Pages: 1 Preflight | 2 Link | 3 Session
+-- Normal view: page set by widget option "Page"
+-- Full screen: swipe / scroll wheel / PAGE = change page, tap header = next page,
+--              long ENTER or Reset button (page 3) = reset statistics
 
 local options = {
   { "Page",     VALUE, 1,   1,   3   },
-  { "Cells",    VALUE, 0,   0,   8   },   -- 0 = automatisch erkennen
-  { "LowCell",  VALUE, 350, 300, 420 },   -- Warnschwelle in 1/100 V pro Zelle
-  { "CritCell", VALUE, 330, 280, 400 },   -- kritische Schwelle in 1/100 V pro Zelle
+  { "Cells",    VALUE, 0,   0,   8   },   -- 0 = detect automatically
+  { "LowCell",  VALUE, 350, 300, 420 },   -- warning threshold in 1/100 V per cell
+  { "CritCell", VALUE, 330, 280, 400 },   -- critical threshold in 1/100 V per cell
   { "Voice",    BOOL,  1 },
-  { "MuteSw",   SOURCE, 0 },  -- Schalter zum Stummschalten (wirkt nur disarmed)
+  { "MuteSw",   SOURCE, 0 },  -- switch that mutes warnings (only while disarmed)
 }
--- Auswahlliste; ohne CHOICE (aeltere Firmware) als Zahl: 1 = English, 2 = Deutsch
+-- dropdown; without CHOICE (older firmware) a number: 1 = English, 2 = Deutsch
 if CHOICE then
   options[#options + 1] = { "Language", CHOICE, 1, { "English", "Deutsch" } }
 else
@@ -53,11 +53,11 @@ local function stringsFor(opts)
 end
 
 local PAGES = { "Preflight", "Link", "Session" }
-local HIST_N = 120          -- Verlauf: 120 Samples ...
-local HIST_DT = 50          -- ... alle 0,5 s = 60 s
-local NEW_BATT_GAP = 1000   -- 10 s ohne Link -> beim Wiederverbinden auf neuen Akku pruefen
+local HIST_N = 120          -- history: 120 samples ...
+local HIST_DT = 50          -- ... every 0.5 s = 60 s
+local NEW_BATT_GAP = 1000   -- 10 s without link -> check for a new battery on reconnect
 local HEADER_H = 30
-local MIN_BATT_V = 2.0      -- darunter steckt kein Akku (FC nur per USB versorgt)
+local MIN_BATT_V = 2.0      -- below this there is no battery (FC powered by USB only)
 local C
 
 local function initColors()
@@ -78,7 +78,7 @@ local function initColors()
 end
 
 ------------------------------------------------------------------------
--- Sensoren
+-- Sensors
 ------------------------------------------------------------------------
 
 local ids = {}
@@ -129,7 +129,7 @@ local function lowerOf(a, b) if a == nil or b < a then return b end return a end
 local function higherOf(a, b) if a == nil or b > a then return b end return a end
 
 ------------------------------------------------------------------------
--- Logik (laeuft sichtbar und unsichtbar)
+-- Logic (runs whether visible or not)
 ------------------------------------------------------------------------
 
 local function readSensors(d)
@@ -145,7 +145,7 @@ end
 local function voice(wgt, now)
   local s, d, o = wgt.s, wgt.s.d, wgt.options
   if o.Voice ~= 1 or not s.up or not d.cell then return end
-  if s.muted and not s.armed then return end            -- Mute gilt nie im Flug
+  if s.muted and not s.armed then return end            -- mute never applies in flight
   local low, crit = o.LowCell / 100, o.CritCell / 100
   local level = 0
   if d.cell < crit then level = 2 elseif d.cell < low then level = 1 end
@@ -155,8 +155,8 @@ local function voice(wgt, now)
     return
   end
   s.lowSince = s.lowSince or now
-  if now - s.lowSince < 300 then return end            -- 3 s anhaltend (Spannungseinbrueche filtern)
-  local repeatTicks = (level == 2) and 1000 or 3000     -- kritisch alle 10 s, sonst alle 30 s
+  if now - s.lowSince < 300 then return end            -- sustained for 3 s (filters voltage sag)
+  local repeatTicks = (level == 2) and 1000 or 3000     -- critical every 10 s, otherwise every 30 s
   if level > (s.warnLevel or 0) or now - (s.lastWarn or 0) > repeatTicks then
     playFile("SYSTEM/lowbatt.wav")
     playNumber(math.floor(d.cell * 100 + 0.5), UNIT_VOLTS, PREC2)
@@ -170,7 +170,7 @@ local function tick(wgt)
   local dt = now - (s.lastTick or now)
   s.lastTick = now
 
-  -- neu angelegte Sensoren (Discover) alle 5 s nachladen
+  -- pick up newly discovered sensors every 5 s
   if now - (s.idsAt or 0) > 500 then
     for k, v in pairs(ids) do if v == false then ids[k] = nil end end
     s.idsAt = now
@@ -179,14 +179,14 @@ local function tick(wgt)
   local up = (getRSSI() or 0) > 0
   if up then readSensors(d) end
 
-  -- Link-Wechsel
+  -- link state change
   if up and not s.up then
     if s.downSince then
       local gap = now - s.downSince
       if s.lossCounted then s.stats.longestLoss = math.max(s.stats.longestLoss, gap) end
       if gap > NEW_BATT_GAP then s.checkBatt = true end
     else
-      s.checkBatt = true                                   -- erste Verbindung
+      s.checkBatt = true                                   -- first connection
     end
     s.downSince, s.lossCounted, s.everUp = nil, false, true
   elseif not up and s.up then
@@ -196,13 +196,13 @@ local function tick(wgt)
   end
   s.up = up
 
-  -- Zellen erkennen / neuer Akku
+  -- detect cells / new battery
   if up and s.checkBatt and d.v and d.v >= MIN_BATT_V then
     local guess = math.max(1, math.ceil(d.v / 4.35))
     local cellNow = d.v / guess
     local st = s.stats
-    -- Neuer Akku nur bei anderer Zellenzahl, ohne bisherigen Flug oder bei vollem Akku.
-    -- (Nach Landung/Crash erholt sich die Spannung ohne Last - das ist kein neuer Akku.)
+    -- New battery only if the cell count changed, nothing was flown yet, or the pack is full.
+    -- (After landing/crash the voltage recovers without load - that is not a new battery.)
     local fresh = cellNow >= 4.0 and (not st.minCell or cellNow > st.minCell + 0.4)
     if s.cells ~= guess or st.flight == 0 or fresh then
       s.cells = guess
@@ -213,20 +213,20 @@ local function tick(wgt)
     s.checkBatt = false
   end
 
-  -- armed gibt es kein USB: ein Akku, der unter Last einbricht, muss weiter warnen
+  -- never USB while armed: a battery sagging under load must keep warning
   d.usb = up and not s.armed and d.v ~= nil and d.v < MIN_BATT_V
-  if d.usb then s.checkBatt = true end                    -- Akku kommt evtl. bei stehendem Link dazu
+  if d.usb then s.checkBatt = true end                    -- a battery may be plugged in while the link is up
   d.cell = (d.v and d.v > 0 and not d.usb) and d.v / cellsOf(wgt) or nil
   local muteSrc = wgt.options.MuteSw
   s.muted = muteSrc ~= nil and muteSrc ~= 0 and (getValue(muteSrc) or 0) > 0
 
-  -- Arm-Status: CH5 (ELRS-Arm-Kanal) und Betaflight-Flugmodus ("*" = disarmed, "!ERR" = gesperrt)
+  -- arm status: CH5 (ELRS arm channel) and Betaflight flight mode ("*" = disarmed, "!ERR" = blocked)
   local armSwitch = getValue("ch5") > 0
   local fmBlocks = up and d.fm and (string.sub(d.fm, -1) == "*" or string.find(d.fm, "!ERR", 1, true) ~= nil)
   s.armSwitch = armSwitch
   s.armed = armSwitch and not fmBlocks and s.everUp
 
-  -- Statistik
+  -- statistics
   local st = s.stats
   if s.armed then st.flight = st.flight + dt end
   if up then
@@ -240,7 +240,7 @@ local function tick(wgt)
     end
   end
 
-  -- Verlauf
+  -- history
   if s.everUp and now - (s.histAt or 0) >= HIST_DT then
     s.histAt = now
     s.hist[#s.hist + 1] = { lq = up and (d.rq or 0) or -1, rssi = up and bestRssi(d) or nil }
@@ -251,7 +251,7 @@ local function tick(wgt)
 end
 
 ------------------------------------------------------------------------
--- Zeichen-Helfer
+-- Drawing helpers
 ------------------------------------------------------------------------
 
 local floor = math.floor
@@ -335,7 +335,7 @@ local function dot(x, cy, color, label)
 end
 
 ------------------------------------------------------------------------
--- Kopfzeile
+-- Header
 ------------------------------------------------------------------------
 
 local function statusInfo(wgt)
@@ -351,7 +351,7 @@ local function statusInfo(wgt)
   return "DISARMED", C.green
 end
 
--- Senderakku: Symbol + Spannung, rechtsbuendig bis rx. Gibt die linke Kante zurueck.
+-- Radio battery: icon + voltage, right-aligned to rx. Returns the left edge.
 local function txBattery(rx, cy)
   local v = getValue("tx-voltage")
   if type(v) ~= "number" or v <= 0 then return rx end
@@ -388,10 +388,10 @@ local function header(wgt, x, y, w, full, page)
     leftEnd = x + tw + 28 + lcd.sizeText(s.d.fm, 0)
   end
 
-  -- rechts: Senderakku, dann Zellen + Flugzeit
+  -- right: radio battery, then cells + flight time
   local rightEnd = txBattery(x + w - 8, cy)
   if s.muted then
-    -- rot = Warnungen stumm; orange = Schalter an, aber armed -> Warnungen trotzdem aktiv
+    -- red = warnings muted; orange = switch on but armed -> warnings still active
     local mt = s.armed and wgt.L.loud or wgt.L.muted
     local mw = lcd.sizeText(mt, 0)
     rightEnd = rightEnd - 10
@@ -404,7 +404,7 @@ local function header(wgt, x, y, w, full, page)
   textR(rightEnd, floor(cy - th / 2), right, 0, s.armed and C.text or C.dim)
   rightEnd = rightEnd - lcd.sizeText(right, 0)
 
-  -- Mitte: Seitentitel, gekuerzt oder weggelassen, wenn der Platz nicht reicht
+  -- center: page title, shortened or omitted if there is not enough room
   local room = rightEnd - leftEnd - 16
   local title = string.format("%d/%d %s", page, #PAGES, PAGES[page])
   if lcd.sizeText(title, 0) > room then title = PAGES[page] end
@@ -427,7 +427,7 @@ local function noLinkBanner(wgt, x, y, w)
 end
 
 ------------------------------------------------------------------------
--- Seite 1: Preflight
+-- Page 1: Preflight
 ------------------------------------------------------------------------
 
 local function pagePreflight(wgt, x, y, w, h)
@@ -451,7 +451,7 @@ local function pagePreflight(wgt, x, y, w, h)
   gauge(x + w * 5 / 6, cy, r, d.curr and d.curr / currMax, c(C.blue),
     fmt(d.curr, "%.1fA"), L.current, "max " .. fmt(st.maxCurr, "%.1fA"))
 
-  -- Balken
+  -- bars
   local by = y + h - bottomH
   local half = floor(w / 2) - 6
   local br = bestRssi(d)
@@ -463,7 +463,7 @@ local function pagePreflight(wgt, x, y, w, h)
   bar(ax + 40, by + 3, half - 110, 10, d.pct and d.pct / 100, c(cellColor(wgt, cell)))
   textR(x + w, by, fmt(d.capa, "%d mAh"), SMLSIZE, C.text)
 
-  -- Checkliste
+  -- checklist
   local ly = by + 44
   local colW = floor(w / 4)
   lcd.drawFilledRectangle(x, ly - 16, w, 32, C.panel)
@@ -487,7 +487,7 @@ local function pagePreflight(wgt, x, y, w, h)
 end
 
 ------------------------------------------------------------------------
--- Seite 2: Link
+-- Page 2: Link
 ------------------------------------------------------------------------
 
 local function tile(x, y, w, h, label, value, color, highlight)
@@ -561,18 +561,18 @@ local function pageLink(wgt, x, y, w, h)
 end
 
 ------------------------------------------------------------------------
--- Seite 3: Session
+-- Page 3: Session
 ------------------------------------------------------------------------
 
 local function horizon(cx, cy, r, roll, pitch)
   lcd.drawFilledCircle(cx, cy, r, C.sky)
   if roll and pitch then
     local sr, cr = math.sin(roll), math.cos(roll)
-    local off = math.deg(pitch) * r / 45            -- 45 Grad Pitch = ein Radius
+    local off = math.deg(pitch) * r / 45            -- 45 degrees pitch = one radius
     for dy = -r, r do
       local halfW = math.sqrt(r * r - dy * dy)
       local x1, x2 = -halfW, halfW
-      local rhs = off - dy * cr                      -- Boden: dx*sin + dy*cos > off
+      local rhs = off - dy * cr                      -- ground: dx*sin + dy*cos > off
       if math.abs(sr) < 0.001 then
         if rhs >= 0 then x2 = x1 end
       elseif sr > 0 then
@@ -618,7 +618,7 @@ local function pageSession(wgt, x, y, w, h, full)
     textR(x + lw - 8, ty, row[2], 0, row[3])
   end
 
-  -- Lage
+  -- attitude
   local rx = x + lw + 10
   local rw = x + w - rx
   local btnH = 34
@@ -642,7 +642,7 @@ local function pageSession(wgt, x, y, w, h, full)
 end
 
 ------------------------------------------------------------------------
--- Kompakt (kleine Zonen)
+-- Compact (small zones)
 ------------------------------------------------------------------------
 
 local function compact(wgt, x, y, w, h)

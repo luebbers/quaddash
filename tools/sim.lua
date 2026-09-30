@@ -1,7 +1,7 @@
--- Simulation: fuehrt das Widget gegen eine nachgebaute EdgeTX-API durch mehrere Szenarien
--- (keine Verbindung, 1S disarmed, armed, Link-Verlust, !ERR, Akkuwechsel 4S, Events).
--- Die String-Metatable wird entfernt, weil EdgeTX keine String-Methoden (s:find) kennt.
--- Aufruf aus dem Repo-Root: lua tools/sim.lua
+-- Simulation: runs the widget against a mocked EdgeTX API through several scenarios
+-- (no link, 1S disarmed, armed, link loss, !ERR, battery swap to 4S, events).
+-- The string metatable is removed because EdgeTX has no string methods (s:find).
+-- Run from the repo root: lua tools/sim.lua
 debug.setmetatable("", nil)
 -- Mock EdgeTX API
 VALUE, BOOL, SOURCE, COLOR, CHOICE = 1, 2, 3, 4, 5
@@ -51,7 +51,7 @@ local function allPages(tag)
     s.stats.flight/100, s.stats.losses, tostring(s.stats.minCell), #s.hist))
 end
 -- 1: no quad
-frame(20); allPages("keine Verbindung")
+frame(20); allPages("no link")
 -- 2: 1S link up, disarmed
 S = {link=true, RxBt=4.2, Curr=0.3, Capa=5, ["Bat%"]=100, RQly=100, ["1RSS"]=-45, ["2RSS"]=0, RSNR=10, ANT=0, TQly=100, TRSS=-50, TSNR=9, TPWR=100, RFMD=7, Ptch=0.1, Roll=-0.3, Yaw=1.5, FM="ACRO*", ch5=-1024}
 frame(50); allPages("1S disarmed")
@@ -60,39 +60,39 @@ S.ch5 = 1024; S.FM = "AIR"
 for i=1,600 do S.RxBt = 4.2 - i*0.0015; S.Curr = 8 + (i%10); S.Capa = 5+i//4; frame(1) end
 allPages("armed 30s")
 -- 4: link lost 5s while armed, then back
-S.link = false; frame(1000); allPages("link weg")
-S.link = true; frame(20); allPages("link zurueck")
+S.link = false; frame(1000); allPages("link lost")
+S.link = true; frame(20); allPages("link back")
 -- 5: disarm, arming blocked
 S.ch5 = -1024; S.FM = "!ERR*"; frame(20); allPages("!ERR")
 -- 6: battery swap to 4S (link gone 15s)
-S.link = false; frame(3000); S.link = true; S.RxBt = 16.8; S.Curr=0.5; frame(50); allPages("4S neuer Akku")
+S.link = false; frame(3000); S.link = true; S.RxBt = 16.8; S.Curr=0.5; frame(50); allPages("4S new battery")
 -- events in full screen
 frame(1, EVT_VIRTUAL_NEXT, nil, true); frame(1, EVT_TOUCH_SLIDE, {swipeLeft=true}, true)
 frame(1, EVT_TOUCH_TAP, {x=400, y=300}, true); frame(1, EVT_VIRTUAL_ENTER_LONG, nil, true)
 print("page after events:", wgt.page, "played:", string.sub(table.concat(played, ", "), 1, 300))
 print("draw calls:", calls)
 
--- Mute-Schalter & USB-Versorgung
+-- mute switch & USB power
 local function voiceCount() local n = 0 for _, f in ipairs(played) do if f == "SYSTEM/lowbatt.wav" then n = n + 1 end end return n end
 local function scenario(tag, setup, frames)
   local before = voiceCount()
   setup(); frame(frames or 800)
-  print(string.format("%-28s usb=%s muted=%s armed=%s cell=%s ansagen=%d", tag, tostring(wgt.s.d.usb),
+  print(string.format("%-28s usb=%s muted=%s armed=%s cell=%s callouts=%d", tag, tostring(wgt.s.d.usb),
     tostring(wgt.s.muted), tostring(wgt.s.armed), tostring(wgt.s.d.cell), voiceCount() - before))
   allPages(tag)
 end
 opts.MuteSw = 999; W.update(wgt, opts)
-scenario("USB-Versorgung 0.7V", function() S.link = true; S.RxBt = 0.7; S.ch5 = -1024; S.FM = "ACRO*"; S.mute = false end)
-scenario("Akku leer, disarmed, laut", function() S.RxBt = 3.2 end)
-scenario("Akku leer, disarmed, STUMM", function() S.mute = true end)
-scenario("Akku leer, ARMED, Mute an", function() S.ch5 = 1024; S.FM = "AIR" end)
-scenario("Einbruch 1.9V, ARMED, laut", function() S.mute = false; S.ch5 = 1024; S.FM = "AIR"; S.RxBt = 1.9 end)
+scenario("USB power 0.7V", function() S.link = true; S.RxBt = 0.7; S.ch5 = -1024; S.FM = "ACRO*"; S.mute = false end)
+scenario("Batt empty, disarmed, loud", function() S.RxBt = 3.2 end)
+scenario("Batt empty, disarmed, MUTED", function() S.mute = true end)
+scenario("Batt empty, ARMED, mute on", function() S.ch5 = 1024; S.FM = "AIR" end)
+scenario("Sag 1.9V, ARMED, loud", function() S.mute = false; S.ch5 = 1024; S.FM = "AIR"; S.RxBt = 1.9 end)
 scenario("1.9V disarmed = USB", function() S.ch5 = -1024; S.FM = "ACRO*" end)
-scenario("2.2V disarmed = Akku", function() S.RxBt = 2.2 end)
+scenario("2.2V disarmed = battery", function() S.RxBt = 2.2 end)
 
--- Sprache: alle Seiten auf Deutsch zeichnen
+-- language: draw all pages in German
 opts.Language = 2; W.update(wgt, opts)
 assert(wgt.L.noLink == "KEIN LINK")
-S.link = false; frame(200); allPages("Deutsch")
+S.link = false; frame(200); allPages("German")
 opts.Language = 1; W.update(wgt, opts)
 assert(wgt.L.noLink == "NO LINK")
