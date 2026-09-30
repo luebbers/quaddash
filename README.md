@@ -84,3 +84,7 @@ lua tools/render.lua   # SVG-Vorschau aller Seiten nach preview/
 - GPS-Seite (Satelliten, Entfernung/Richtung zum Home-Punkt, Maximalwerte, letzte bekannte Position nach Link-Verlust)
 - GPS-Fix in der Preflight-Checkliste
 - Letzte Position bei Link-Verlust auf die SD-Karte schreiben
+
+## Lizenz
+
+[MIT](LICENSE)
