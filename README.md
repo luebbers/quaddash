@@ -113,6 +113,17 @@ lua tools/render.lua   # SVG preview of all pages into preview/
 
 `sim.lua` removes the string metatable because EdgeTX has no string methods. `s:find()` fails there with *attempt to index a string value*, so the widget always uses `string.find(s, …)`.
 
+## Bonus: JoyView (USB joystick view)
+
+A second widget in `WIDGETS/JoyView/` for a model you use as a **USB joystick for simulators and games**. It shows what the game sees: both sticks (mode 2), the axes CH5–8 as sliders and the buttons CH9–32 as a grid labelled with their **joystick button number** (B1, B2, …). That makes binding functions in a game easy. Pressed buttons light up.
+
+![JoyView](docs/joyview.png)
+
+- Expects the USB joystick in **Classic** mode (*MDL → USB Joystick*): CH1–8 are axes, CH9–32 are buttons, and a button counts as pressed while its channel is above 0.
+- Labels come from the **mixer names**, so the widget adapts to your own mapping.
+- Example mapping: S1/S2 on CH5/CH6, each 3-position switch as two buttons (up/down, one `MAX` mix with the switch position as condition), SE, SF and SW1–SW6 as single buttons. Set SW1–SW6 to *Toggle* (momentary) in that model, because games expect key presses rather than keys that stay down.
+- No options; add it to a full-screen layout.
+
 ## Planned
 
 - GPS page (satellites, distance/direction to home, maximum values, last known position after link loss)

@@ -82,6 +82,17 @@ lua tools/render.lua   # SVG-Vorschau aller Seiten nach preview/
 
 `sim.lua` entfernt die String-Metatable, weil EdgeTX keine String-Methoden kennt. `s:find()` führt dort zu *attempt to index a string value*, deshalb verwendet das Widget immer `string.find(s, …)`.
 
+## Bonus: JoyView (USB-Joystick-Ansicht)
+
+Ein zweites Widget in `WIDGETS/JoyView/` für ein Modell, das als **USB-Joystick für Simulatoren und Spiele** dient. Es zeigt, was das Spiel sieht: beide Sticks (Mode 2), die Achsen CH5–8 als Schieberegler und die Tasten CH9–32 als Raster mit ihrer **Joystick-Tastennummer** (B1, B2, …). Damit lassen sich Funktionen im Spiel leicht belegen. Gedrückte Tasten leuchten.
+
+![JoyView](docs/joyview.png)
+
+- Erwartet den USB-Joystick im Modus **Classic** (*MDL → USB Joystick*): CH1–8 sind Achsen, CH9–32 Tasten. Eine Taste gilt als gedrückt, solange ihr Kanal über 0 liegt.
+- Die Beschriftungen kommen aus den **Mixer-Namen**, das Widget passt sich also an die eigene Belegung an.
+- Beispielbelegung: S1/S2 auf CH5/CH6, jeder 3-Stufen-Schalter als zwei Tasten (oben/unten, je ein `MAX`-Mixer mit der Schalterstellung als Bedingung), SE, SF und SW1–SW6 als einzelne Tasten. SW1–SW6 in diesem Modell auf *Toggle* (Taster) stellen, weil Spiele Tastendrücke erwarten und keine eingerasteten Tasten.
+- Keine Optionen, einfach in ein Vollbild-Layout legen.
+
 ## Geplant
 
 - GPS-Seite (Satelliten, Entfernung/Richtung zum Home-Punkt, Maximalwerte, letzte bekannte Position nach Link-Verlust)
