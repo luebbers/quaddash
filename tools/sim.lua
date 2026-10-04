@@ -96,3 +96,16 @@ assert(wgt.L.noLink == "KEIN LINK")
 S.link = false; frame(200); allPages("German")
 opts.Language = 1; W.update(wgt, opts)
 assert(wgt.L.noLink == "NO LINK")
+
+-- Betaflight 2025+ flight mode suffixes with the arm switch ON
+local function armCase(tag, fm)
+  S.FM = fm; frame(20)
+  print(string.format("%-34s FM=%-6s armed=%-5s state=%s", tag, fm, tostring(wgt.s.armed), tostring(wgt.s.fmState)))
+end
+S.link = true; S.RQly = 100; S.RxBt = 4.1; S.ch5 = 1024
+armCase("ready to arm, switch on (bug before)", "ACRO*")
+armCase("arming disabled", "ANGL!")
+armCase("GPS Rescue not ready", "ACRO?")
+armCase("failsafe while disarmed -> stays", "!FS!")
+armCase("armed", "AIR")
+armCase("failsafe while armed -> stays armed", "!FS!")

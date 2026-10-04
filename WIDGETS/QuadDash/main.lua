@@ -23,7 +23,7 @@ end
 
 local STRINGS = {
   en = {
-    noLink = "NO LINK", waiting = "WAITING FOR QUAD", blocked = "ARM BLOCKED",
+    noLink = "NO LINK", waiting = "WAITING FOR QUAD", blocked = "ARM BLOCKED", noRescue = "NO RESCUE",
     muted = "MUTED", loud = "ACTIVE",
     noTelem = "NO TELEMETRY  for %d s", last = "Last: %s/cell   LQ %s   RSSI %s",
     perCell = "per cell", noBatt = "%.1fV  no battery", current = "Current", batt = "Batt",
@@ -35,7 +35,7 @@ local STRINGS = {
     losses = "Link losses", longest = "Longest loss", reset = "Reset", resetFull = "Reset: fullscreen",
   },
   de = {
-    noLink = "KEIN LINK", waiting = "WARTE AUF QUAD", blocked = "ARM GESPERRT",
+    noLink = "KEIN LINK", waiting = "WARTE AUF QUAD", blocked = "ARM GESPERRT", noRescue = "KEIN RESCUE",
     muted = "STUMM", loud = "LAUT",
     noTelem = "KEINE TELEMETRIE  seit %d s", last = "Zuletzt: %s/Zelle   LQ %s   RSSI %s",
     perCell = "pro Zelle", noBatt = "%.1fV  kein Akku", current = "Strom", batt = "Akku",
@@ -132,6 +132,20 @@ local function higherOf(a, b) if a == nil or b > a then return b end return a en
 -- Logic (runs whether visible or not)
 ------------------------------------------------------------------------
 
+-- Betaflight flight mode: while disarmed it ends in "*" (ready to arm), "!" (arming disabled)
+-- or "?" (GPS Rescue not ready); 4.5 only used "*", older versions showed "!ERR". Nothing is
+-- appended while armed. "!FS!" (failsafe) carries no arm information.
+local function fmState(fm)
+  if not fm then return nil end
+  if fm == "!FS!" then return "failsafe" end
+  if string.find(fm, "!ERR", 1, true) then return "blocked" end
+  local last = string.sub(fm, -1)
+  if last == "*" then return "ready" end
+  if last == "!" then return "blocked" end
+  if last == "?" then return "norescue" end
+  return "armed"
+end
+
 local function readSensors(d)
   d.v, d.curr, d.capa, d.pct = num("RxBt"), num("Curr"), num("Capa"), num("Bat%")
   d.rq, d.r1, d.r2, d.rsnr, d.ant = num("RQly"), num("1RSS"), num("2RSS"), num("RSNR"), num("ANT")
@@ -220,11 +234,16 @@ local function tick(wgt)
   local muteSrc = wgt.options.MuteSw
   s.muted = muteSrc ~= nil and muteSrc ~= 0 and (getValue(muteSrc) or 0) > 0
 
-  -- arm status: CH5 (ELRS arm channel) and Betaflight flight mode ("*" = disarmed, "!ERR" = blocked)
+  -- arm status: CH5 (ELRS arm channel) and the Betaflight flight mode (see fmState)
   local armSwitch = getValue("ch5") > 0
-  local fmBlocks = up and d.fm and (string.sub(d.fm, -1) == "*" or string.find(d.fm, "!ERR", 1, true) ~= nil)
-  s.armSwitch = armSwitch
-  s.armed = armSwitch and not fmBlocks and s.everUp
+  local fs = up and fmState(d.fm) or nil
+  s.armSwitch, s.fmState = armSwitch, fs
+  if fs == "failsafe" then
+    s.armed = armSwitch and s.armed                       -- keep the last known state
+  else
+    local disarmed = fs == "ready" or fs == "blocked" or fs == "norescue"
+    s.armed = armSwitch and not disarmed and s.everUp
+  end
 
   -- statistics
   local st = s.stats
@@ -344,10 +363,10 @@ local function statusInfo(wgt)
     if s.everUp then return L.noLink, C.red end
     return L.waiting, C.track
   end
-  local fm = s.d.fm or ""
-  if string.find(fm, "!FS!", 1, true) then return "FAILSAFE", C.red end
+  if s.fmState == "failsafe" then return "FAILSAFE", C.red end
   if s.armed then return "ARMED", C.red end
-  if string.find(fm, "!ERR", 1, true) then return L.blocked, C.orange end
+  if s.fmState == "blocked" then return L.blocked, C.orange end
+  if s.fmState == "norescue" then return L.noRescue, C.orange end
   return "DISARMED", C.green
 end
 
@@ -475,7 +494,9 @@ local function pagePreflight(wgt, x, y, w, h)
   local armCol = s.armed and C.orange or (s.armSwitch and C.red or C.green)
   local armLbl = s.armed and L.ckArmed or (s.armSwitch and L.ckArmOn or L.ckArmOff)
   local fmCol = C.dim
-  if up and d.fm then fmCol = string.find(d.fm, "!ERR", 1, true) and C.red or C.green end
+  if up and d.fm then
+    fmCol = (s.fmState == "blocked" and C.red) or (s.fmState == "norescue" and C.yellow) or C.green
+  end
   local lx = x + 8
   dot(lx, ly, linkCol, L.ckLink)
   if d.usb then battCol = C.blue end
